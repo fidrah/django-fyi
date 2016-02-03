@@ -1,0 +1,67 @@
+<div class="productlist list-group">
+	<!--Pagination-->
+	<ul class="pagination">
+    </ul>
+  <!--Pagination End-->
+
+	{% for product in currentpage.object_list %}
+		<button type="button" data-toggle="modal" data-target=".bs-example-modal-lg" class="list-group-item" id={{product.id}}>
+			<span class="floatleft">{{product.nombre}}</span>
+			<span class="floatright">{{product.codigo}}</span>
+		</button>
+	{% endfor %}
+
+</div>
+
+<script type="text/javascript">
+	var model={
+
+		pages:null,
+		activepage:null,
+
+		init:function(){	
+			//{{numberofpages}} django template sintax
+			this.pages={{numberofpages}}
+			this.activepage={{currentpage.number}}
+		},
+	}
+	var controller={
+		init:function(){	
+			model.init();
+			view.init(model.pages,model.activepage);
+			
+		},
+	}
+	var view={
+		init:function(pages,activepage){	
+			this.generatepagination(pages,activepage)
+		},
+		generatepagination:function(pages,activepage){
+			pages.forEach(function(page){	
+				li=$("<li></li>")
+				if(page==activepage)
+					li.addClass('active')
+				a=$("<a></a>")
+				$(a).text(page)
+				$(a).click(function(page){
+					return function(){
+						if($('#filter').val()=='')
+						$("#productspage").load('/inventory/search/loadpage/'+page+'/none')
+						else
+						$("#productspage").load('/inventory/search/loadpage/'+page+'/'+$('#filter').val())
+					}
+				}(page));
+				$(li).append(a);
+				$(".pagination").append(li)
+			});
+		},
+	}
+	controller.init()
+</script>
+
+<script type="text/javascript">
+	$('button').click(function(){
+		$('.modal-body').load('/inventory/search/product/manage/'+$(this).attr('id'));
+	});
+</script>
+

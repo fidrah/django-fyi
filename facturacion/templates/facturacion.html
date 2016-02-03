@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+	{% load staticfiles %}
+	<link rel="stylesheet" type="text/css" href="{% static "css/bootstrap.css" %}">
+	<link rel="stylesheet" type="text/css" href="{% static "css/default.css" %}">
+	<link rel="stylesheet" type="text/css" href="{% static "css/facturacion.css" %}">
+
+	<script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+	<script type="text/javascript" src="{% static "js/bootstrap.js" %}"></script>
+	<title>Facturar</title>
+
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+</head>
+<body>
+	<div class="searchproductheadercontainer container-width-max">
+		<div class="container-width-980 center centertext">
+			<h1>Facturar</h1>
+		</div>
+	</div>
+
+	<div class="container-width-980 center">	
+	  	<input type="text" class="form-control input-lg " style="background-color:transparent;" placeholder="Codigo o nombre del producto" aria-describedby="basic-addon1" id='search'>
+	</div>
+
+	<div class="container-width-980 center">
+		<div class="row centertext invoiceheader">
+			<div class="col-md-1"></div>
+			<div class="col-md-3">
+				<h2>Cantidad</h2>
+			</div>
+			<div class="col-md-5">
+				<h2>Producto</h2>
+			</div>
+			<div class="col-md-3">
+				<h2>Precio</h2>
+			</div>
+		</div>
+		<div class="invoicebody centertext">
+			
+		</div>
+		<div class="row invoicetotal centertext">
+			<div class="col-md-1"></div>
+			<div class="col-md-3"></div>
+			<div class="col-md-5"><h2>Total</h2></div>
+			<div class="col-md-3 pricescontainer" id="total"><h2>$0</h2></div>
+		</div>
+
+		<button class="btn btn-success btn-lg" id="pagar">Pagar</button>
+		 
+	</div>
+
+	<!-- Large modal -->
+
+	<div class="modal bs-example-modal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" style="display: none;">
+		<div class="modal-dialog modal">
+			<div class="modal-content">
+
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+					<h4 class="modal-title" id="myModalLabel">Factura</h4>
+				</div>
+				<div class="modal-body">
+					
+				</div>
+			</div><!-- /.modal-content -->
+		</div><!-- /.modal-dialog -->
+	</div>
+
+	<script>
+		var model={
+			factura:null,
+			productos:null,
+			init:function(){
+				this.factura={'detalle':[],'total':0};
+				this.productos={};
+			},
+		}
+		var controller={
+			init:function(){
+				model.init();
+				view.init();
+
+				this.utils();
+			},
+			
+			utils:function(){
+				$(window).keypress(function(e){
+					if(e.keyCode === 0 || e.keyCode === 32) {
+						if($('#search').is(':focus') && $('#search').val()==''){
+							e.preventDefault();
+						}
+						else if(!$('#search').is(':focus')){
+							$('#search').focus();
+							e.preventDefault();
+						}
+					}
+					if(e.keyCode === 13 && $('#search').is(':focus')){
+						if(model.productos[$('#search').val()] instanceof Object){
+							view.generateproductmodal(model.productos[$('#search').val()]);
+						}else{
+							controller.getproductinformation()
+						}
+					}
+					
+				});
+			},
+
+			getproductinformation:function(){
+				$.ajax({
+	      			type: "post",
+	      			url: "/facturacion/facturar/buscarproducto",
+	      			data: {'mydata': JSON.stringify({'codigo':$('#search').val()})},
+	      			contentType: 'application/json; charset=utf-8',
+	      			dataType: "json",
+	      			success:function(response){
+	      				model.productos[response.producto.codigo]=response
+	      				view.generateproductmodal(response);
+	      			},
+				});
+			},
+
+			generateitem:function(jsonobj,cantidadinput,e){
+				nuevoprecio=controller.generarprecio(cantidadinput.val(),jsonobj.precios)
+				if(nuevoprecio == undefined){
+					alert('La cantidad ingresada no puede ser vendida de acuerdo a los precios especificados por cantidad')
+					e.preventDefault()
+				}else{
+					newobj={'cantidad':cantidadinput.val(),'nombre':jsonobj.producto.nombre,'precio':nuevoprecio,'codigo':jsonobj.producto.codigo,'tipo':jsonobj.producto.tipo}
+					model.factura.detalle.push(newobj)
+					model.factura.total+=nuevoprecio
+
+					view.generateinvoiceview(model.factura);
+				}
+			},
+
+			generarprecio:function(cantidad,precios){
+				var sortable = [];
+				for (var x=0; x< precios.length; x++){
+      				sortable.push([precios[x].cantidad,precios[x].precio])
+				}
+				sortable.sort(function(a, b) {return b[0] - a[0]})
+				
+				var includedprices=[]
+				var est=true
+				var cantidadeditable=cantidad
+				var contador=0;
+				var total=0;
+				while(est){
+					if(contador === sortable.length){
+						console.log('cantidadeditable : '+cantidadeditable)
+						if(cantidadeditable > 0){
+							
+							return;
+						}else{
+							est=false;
+						}
+
+					}else{
+						console.log(cantidadeditable+" "+sortable[contador][0])
+						if (cantidadeditable >= sortable[contador][0]){
+							includedprices.push(sortable[contador])
+							cantidadeditable= cantidadeditable - sortable[contador][0]
+						}else{
+							contador+=1;
+						}
+
+					}
+				}
+				console.log(includedprices)
+
+				for(var x=0; x< includedprices.length; x++)
+					total+=includedprices[x][1]
+				console.log('total: '+total)
+				return total
+			},
+
+			recreateinvoice:function(){
+				view.generateinvoiceview(model.factura);
+			}
+		}
+		var view={
+			init:function(){},
+
+			generateproductmodal:function(jsonobj){
+				row=$("<div class='row'></div>")
+				leftside=$("<div class='col-md-5'></div>")
+				rightside=$("<div class='col-md-7'><h4>Lista de precios</h4></div>")
+
+				row.append(leftside)
+				row.append(rightside)
+				cantidadinput=$('<input type="text" class="form-control input-lg " style="background-color:transparent;" placeholder="Cantidad" aria-describedby="basic-addon1" id="cantidad">')
+				nombre=$("<h4>Nombre: "+jsonobj.producto.nombre+"</h4>")
+				codigo=$("<h4>Codigo: "+jsonobj.producto.codigo+"</h4>")
+				tipo=$("<h4>Tipo: "+jsonobj.producto.tipo+"</h4>")
+				inventario=$("<h4>Cantidad en inventario: "+jsonobj.inventario+" "+jsonobj.producto.tipo+" </h4>")
+				leftside.append(cantidadinput)
+				leftside.append(nombre)
+				leftside.append(codigo)
+				leftside.append(tipo)
+				leftside.append(inventario)
+				for(var x=0; x<jsonobj.precios.length; x++){
+					precio=$("<h5>Cantidad: "+jsonobj.precios[x].cantidad+" "+jsonobj.producto.tipo+", Valor: "+jsonobj.precios[x].precio+" Colones</h5>")
+					rightside.append(precio)
+				}
+				
+				$('.modal-body').empty().append(row)
+				$('.modal').modal('show')
+				$(cantidadinput).focus()
+				$('.modal-backdrop').remove();
+				$(cantidadinput).keyup(function(e){
+					if (e.keyCode === 13 && $(cantidadinput).val() != '') {
+					 	if($(cantidadinput).val() > jsonobj.inventario){
+					 		alert('La cantidad especificada es mayor a la cantidad que se encuentra en el inventario')
+					 	}
+					 	else{
+      						controller.generateitem(jsonobj,cantidadinput,e)
+					 	}
+      				}
+   					
+				});
+
+			},
+
+			generateinvoiceview:function(factura){
+				$('.invoicebody').empty()
+				tmptotal=0;
+				for(var x=0; x < factura.detalle.length; x++){
+					dt=factura.detalle[x]
+					if(dt != null){
+						row=$("<div class='row'></div>")
+						remove=$("<div class='col-md-1'><h2><span class='glyphicon glyphicon-remove'></span></h2></div>")
+						cantidad=$("<div class='col-md-3'><h2>"+dt.cantidad+" "+dt.tipo+"</h2></div>")
+						producto=$("<div class='col-md-5'><h2>"+dt.nombre+"</h2></div>")
+						precio=$("<div class='col-md-3 pricescontainer'><h2>$"+dt.precio+"</h2></div>")
+						row.append(remove).append(cantidad).append(producto).append(precio)
+						$('.invoicebody').append(row)
+
+						$(remove).click(function(param){
+							return function(){
+								console.log(param)
+								factura.detalle.splice( $.inArray(param, factura.detalle), 1 );
+								controller.recreateinvoice();
+							}
+							
+						}(x));
+					}
+				tmptotal+=dt.precio
+				}
+				model.factura.total=tmptotal
+				$("#total").children('h2').text(factura.total)
+				$('.modal').modal('hide')
+
+				$(cantidadinput).blur();
+      			$("#search").val('').focus()
+			}
+		}
+		controller.init();
+	</script>
+
+	<script type="text/javascript">
+		$('#pagar')
+	</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

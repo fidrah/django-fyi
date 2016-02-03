@@ -1,0 +1,333 @@
+
+<div class="productcontainer">
+	<div class="row productinformation">
+		
+	</div>
+	<div class="row inventorycontainer" style="margin-top:20px;">
+		
+	</div>
+	<div class="row pricescontainer" style="margin-top:20px;">
+		
+	</div>
+	<button id="agregarprecio" onclick='productcontroller.generatenewprice()' class="btn btn-success btn-lg">Agregar Precio</button>
+	<button id="btnguardar" class="btn btn-lg btn-primary" onclick="productcontroller.save()">Guardar</button>
+	<span id="results"></span>
+</div>
+
+<script type="text/javascript">
+	var productmodel={
+
+		product:null,
+		stores:null,
+		type:null,
+
+		init:function(){
+			this.product={{product| safe}}
+			this.stores={{stores| safe}}
+			tmp={{ type | safe }}
+			this.type=tmp.value
+		},
+	}
+	var productcontroller={
+		init:function(){	
+			productmodel.init();
+			productview.init(productmodel.product);
+			
+		},
+		generatenewprice:function(){
+			productview.generatenewpriceview(productmodel.product,productmodel.stores,productmodel.type)
+		},
+		save:function(btn){
+			obj=productmodel.product
+			str=JSON.stringify(obj)
+			//$('.results').load('/inventory/modify/product/'+str)
+			$("#btnguardar").prop('disabled',true)
+			$.ajax({
+      			type: "post",
+      			url: "/inventory/modify/product",
+      			data: {'mydata': str},
+      			contentType: 'application/json; charset=utf-8',
+      			dataType: "json",
+      			success:function(response){
+      				$('.modal-body').load('/inventory/search/product/manage/'+obj.product.id);
+      				$('#results').text(response.funca)
+      			},
+			});
+		},
+	}
+//.
+	var productview={
+		init:function(product){	
+			this.generateform(product);
+			this.addevents();
+		},
+		addevents:function(){
+			$('input').on('input',function(){$('#btnguardar').prop('disabled',false);});
+			$('button').click(function(){
+				if($(this).attr('id')!='btnguardar'){
+					$('#btnguardar').prop('disabled',false);
+				}
+			});
+		},
+		
+		//generate new price for product
+		generatenewpriceview:function(product,stores,type){
+			obj=this.generatepriceinjson(product,stores,type);
+			
+			precio=this.addprice(obj)
+			console.log(precio)
+			$(".pricescontainer").append(precio)
+			this.addevents();
+		},
+		generatepriceinjson:function(product,stores,type){
+			var extendedstores = $.extend(true,[],stores);
+			obj={'cantidad':0,'action':'new','id':null,'precio':0,'tiendas':extendedstores,'tipo':type}
+			product.precios.push(obj)
+			return obj
+		},
+		// end generate new price for product
+		generateform:function(product){
+			code=this.addcodeinput('6','#',product.product,' ');
+			$(".productinformation").append(code);
+			nm=this.addnameinput('6','Nombre',product.product,' ');
+			$(".productinformation").append(nm);
+
+			inventario=product.inventario
+
+			for(var x=0; x<inventario.length; x++){
+				inventariotienda=this.addinventorystore(inventario[x])
+				$(".inventorycontainer").append(inventariotienda)
+			}
+
+			precios=product.precios
+
+			for(var x=0; x<precios.length; x++){
+				precio=this.addprice(precios[x])
+				$(".pricescontainer").append(precio)
+			}
+			
+		},
+		addinventorystore:function(inventorystore){
+			coldivcontainer=$("<div class='col-md-4'></div>")
+			panel=$("<div class='panel panel-primary'></div>")
+			panelhead=$("<div class='panel-heading'><h3 class='panel-title'>Inventario en "+inventorystore.nombretienda+"</h3></div>")
+        	
+			panelbody=$("<div class='panel-body'></div>")
+			
+			$(coldivcontainer).append(panel)
+			$(panel).append(panelhead)
+			$(panel).append(panelbody)
+
+			raw1=$("<div class='row'></div>")
+
+			$(panelbody).append(raw1)
+
+			inputcantidad= this.addinputinventoryquantity(inventorystore)
+			$(raw1).append(inputcantidad)
+			
+
+			raw2=$("<div style='margin-top:20px' class='row'></div>")
+
+			$(panelbody).append(raw2)
+			
+			inputsum= this.addinputinventorysum(inventorystore)
+			$(raw2).append(inputsum)
+
+			raw3=$("<div style='margin-top:20px' class='row'></div>")
+
+			$(panelbody).append(raw3)
+			
+			inputsubs= this.addinputinventorysubstraction(inventorystore)
+			$(raw3).append(inputsubs)
+			//$(raw2).append(storebuttons)			
+
+			return coldivcontainer;
+		},
+		addinputinventorysum:function(obj){
+			inputcontainer=$("<div class='input-group input-group-lg' style='padding-left:5px; padding-right:5px'></div>")
+			span=$("<span class='input-group-addon' id=''>Agregar</span>")
+			input=$("<input type='text' class='form-control' aria-describedby='basic-addon1' value='0'>")
+			
+			$(input).change(function(){
+				obj.mas=$(this).val();
+			});
+
+			$(inputcontainer).append(span)
+			$(inputcontainer).append(input)
+
+			return inputcontainer;
+		},
+		addinputinventorysubstraction:function(obj){
+			inputcontainer=$("<div class='input-group input-group-lg' style='padding-left:5px; padding-right:5px'></div>")
+			span=$("<span class='input-group-addon' id=''>Retirar</span>")
+			input=$("<input type='text' class='form-control' aria-describedby='basic-addon1' value='0'>")
+			
+			$(input).change(function(){
+				obj.menos=$(this).val();
+			});
+
+			$(inputcontainer).append(span)
+			$(inputcontainer).append(input)
+
+			return inputcontainer;
+		},
+		addinputinventoryquantity:function(obj){
+			inputcontainer=$("<div class='input-group input-group-lg' style='padding-left:5px; padding-right:5px'></div>")
+			span=$("<span class='input-group-addon' id=''>"+obj.tipo+"</span>")
+			input=$("<input type='text' class='form-control' aria-describedby='basic-addon1' disabled value='"+obj.cantidad+"'>")
+			
+
+			$(inputcontainer).append(span)
+			$(inputcontainer).append(input)
+
+			return inputcontainer;
+		},
+		addcodeinput:function(md,simbol,obj,disabled){
+
+			coldiv=$("<div class='col-md-"+md+"'></div>")
+			inputcontainer=$("<div class='input-group input-group-lg'></div>")
+			span=$("<span class='input-group-addon' id=''>"+simbol+"</span>")
+			input=$("<input type='text' class='form-control' aria-describedby='basic-addon1' "+disabled+" value='"+obj.codigo+"'>")
+			
+			$(input).change(function(){
+				obj.codigo=$(this).val();
+			});
+
+			$(coldiv).append(inputcontainer)
+			$(inputcontainer).append(span)
+			$(inputcontainer).append(input)
+
+			return coldiv;
+		},
+		addnameinput:function(md,simbol,obj,disabled){
+
+			coldiv=$("<div class='col-md-"+md+"'></div>")
+			inputcontainer=$("<div class='input-group input-group-lg'></div>")
+			span=$("<span class='input-group-addon' id=''>"+simbol+"</span>")
+			input=$("<input type='text' class='form-control' aria-describedby='basic-addon1' "+disabled+" value='"+obj.nombre+"'>")
+			
+			$(input).change(function(){
+				obj.nombre=$(this).val();
+			});
+
+			$(coldiv).append(inputcontainer)
+			$(inputcontainer).append(span)
+			$(inputcontainer).append(input)
+
+			return coldiv;
+		},
+		addstores:function(stores){
+			console.log(stores)
+			maincontainer=$("<div class='col-md-12'></div>")
+			buttonscontainer=$("<div class='btn-group btn-group-lg' role='group' aria-label='Large button group'></div>")
+			$(maincontainer).append(buttonscontainer)
+
+			for(var x=0; x<stores.length; x++){
+				checked=''
+				if(stores[x].Checked){
+					checked='btn-success'
+				}
+      			button=$("<button type='button' class='btn btn-default "+checked+"'>"+stores[x].nombre+"</button>")
+      			
+      			//stores event
+      			$(button).click(function(store){
+     				return function(){
+	      				if($(this).hasClass('btn-success')){
+	      					store.Checked=false;
+	      					$(this).removeClass('btn-success')
+	      				}else{
+	      					store.Checked=true;
+	      					$(this).addClass('btn-success')
+	      				}
+      				}
+      			}(stores[x]));
+
+      			$(buttonscontainer).append(button)
+     		}
+   			console.log('paso')
+   			return maincontainer
+		},
+		addprice:function(precio){
+
+			coldivcontainer=$("<div class='col-md-12'></div>")
+			panel=$("<div class='panel panel-success'></div>")
+			panelhead=$("<div class='panel-heading'><h3 class='panel-title'>Precio</h3></div>")
+			panelbody=$("<div class='panel-body'></div>")
+			$(coldivcontainer).append(panel)
+			$(panel).append(panelhead)
+			$(panel).append(panelbody)
+
+			raw1=$("<div class='row'></div>")
+
+			$(panelbody).append(raw1)
+
+			//inputcantidad= this.addinput('6',precio.tipo,precio.cantidad,'')
+			inputcantidad= this.addcantidadinput('5',precio,'')
+			inputprecio= this.addprecioinput('5','$',precio,'')
+			deletebutton=this.adddeletebutton('2',precio)
+			$(raw1).append(inputcantidad)
+			$(raw1).append(inputprecio)
+			$(raw1).append(deletebutton)
+
+			raw2=$("<div style='margin-top:20px' class='row'></div>")
+
+			$(panelbody).append(raw2)
+			console.log(precio)
+			storebuttons=this.addstores(precio.tiendas)
+
+			$(raw2).append(storebuttons)			
+
+			return coldivcontainer;
+		},
+		adddeletebutton:function(md,precio){
+			coldiv=$("<div class='col-md-"+md+"'></div>")
+			buttonscontainer=$("<div class='btn-group btn-group-lg' role='group' aria-label='Large button group'></div>")
+			button=$("<button type='button' class='btn btn-danger'>Borrar</button>")
+			$(coldiv).append(buttonscontainer)
+			$(buttonscontainer).append(button)
+
+			$(button).click(function(){
+				precio['action']='delete'
+				$(this).parents().eq(5).hide();
+			});
+			return coldiv
+		},
+		addcantidadinput:function(md,obj,disabled){
+
+			coldiv=$("<div class='col-md-"+md+"'></div>")
+			inputcontainer=$("<div class='input-group input-group-lg'></div>")
+			span=$("<span class='input-group-addon' id=''>"+obj.tipo+"</span>")
+			input=$("<input type='text' class='form-control' aria-describedby='basic-addon1' "+disabled+" value='"+obj.cantidad+"'>")
+			
+			$(input).change(function(){
+				obj.cantidad=$(this).val();
+			});
+
+			$(coldiv).append(inputcontainer)
+			$(inputcontainer).append(span)
+			$(inputcontainer).append(input)
+
+			return coldiv;
+		},
+		addprecioinput:function(md,simbol,obj,disabled){
+
+			coldiv=$("<div class='col-md-"+md+"'></div>")
+			inputcontainer=$("<div class='input-group input-group-lg'></div>")
+			span=$("<span class='input-group-addon' id=''>"+simbol+"</span>")
+			input=$("<input type='text' class='form-control' aria-describedby='basic-addon1' "+disabled+" value='"+obj.precio+"'>")
+			
+			$(input).change(function(){
+				obj.precio=$(this).val();
+			});
+
+			$(coldiv).append(inputcontainer)
+			$(inputcontainer).append(span)
+			$(inputcontainer).append(input)
+
+			return coldiv;
+		},
+	}
+	productcontroller.init();
+</script>
+</body>
+</html>

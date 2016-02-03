@@ -1,0 +1,15 @@
+.invoiceheader{
+	border-bottom: 1px solid rgba(189, 190, 188, 0.81);
+}
+.invoicebody{
+	color:rgb(148, 144, 144);
+}
+.pricescontainer{
+	border-left: 1px solid rgba(189, 190, 188, 0.81);
+}
+.invoicetotal{
+	border-top: 1px solid rgba(189, 190, 188, 0.81);	
+}
+.modal-content{
+	background: url("../Images/bg.png");
+}
